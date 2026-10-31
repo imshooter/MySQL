@@ -43,8 +43,8 @@ public OnGameModeInit() {
     gDatabase = MySQL_Connect(TEST_HOST, TEST_USER, TEST_PASSWORD, TEST_DATABASE, TEST_PORT);
     MySQL_Run(gDatabase, "DROP TABLE IF EXISTS mysql_statements_test");
     MySQL_Run(gDatabase, "CREATE TABLE mysql_statements_test (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(64) NOT NULL, amount INT NOT NULL, ratio FLOAT NULL, flags INT UNSIGNED NULL, doc JSON NULL, big TEXT NULL, UNIQUE KEY name (name)) DEFAULT CHARSET=utf8mb4");
-    gInsert = MySQL_Prepare(gDatabase, "INSERT INTO mysql_statements_test (name, amount, ratio) VALUES (%q, %i, %f)");
-    gUpsert = MySQL_Prepare(gDatabase, "INSERT INTO mysql_statements_test (name, amount) VALUES (%q, %i) ON DUPLICATE KEY UPDATE amount = VALUES(amount)");
+    gInsert = MySQL_PrepareStatement(gDatabase, "INSERT INTO mysql_statements_test (name, amount, ratio) VALUES (%q, %i, %f)");
+    gUpsert = MySQL_PrepareStatement(gDatabase, "INSERT INTO mysql_statements_test (name, amount) VALUES (%q, %i) ON DUPLICATE KEY UPDATE amount = VALUES(amount)");
     Test_Run(gTests);
 
     return 1;
@@ -73,7 +73,7 @@ test RunsOnce() {
 
 test SelectsWithValues() {
     new const
-        Statement:select = MySQL_Prepare(gDatabase, "SELECT name, amount, ratio, NULL AS nothing, %i + 1 AS next, %u AS big FROM mysql_statements_test WHERE name = %q")
+        Statement:select = MySQL_PrepareStatement(gDatabase, "SELECT name, amount, ratio, NULL AS nothing, %i + 1 AS next, %u AS big FROM mysql_statements_test WHERE name = %q")
     ;
 
     new
@@ -98,7 +98,7 @@ test SelectsWithValues() {
 
 test ReadsLongCells() {
     new const
-        Statement:select = MySQL_Prepare(gDatabase, "SELECT REPEAT(%q, %i) AS long_text")
+        Statement:select = MySQL_PrepareStatement(gDatabase, "SELECT REPEAT(%q, %i) AS long_text")
     ;
 
     new
@@ -114,7 +114,7 @@ test ReadsLongCells() {
 
 test ExecutesLater() {
     Test_Async(3000);
-    ASSERT(MySQL_Execute(gInsert, "OnExecuted", 7, "beta", 6, 2.5));
+    ASSERT(MySQL_ExecuteStatement(gInsert, "OnExecuted", 7, "beta", 6, 2.5));
 }
 
 public OnExecuted(context) {
@@ -137,7 +137,7 @@ test SendsBatches() {
 
     for (new i; i != 2000; ++i) {
         format(name, sizeof (name), "row %i", i);
-        ASSERT(MySQL_AddRow(batch, name, i, float(i) / 2.0));
+        ASSERT(MySQL_AddBatchRow(batch, name, i, float(i) / 2.0));
     }
 
     ASSERT_EQ(MySQL_GetBatchRows(batch), 2000);
@@ -158,7 +158,7 @@ test UpdatesInBatches() {
 
     for (new i; i != 100; ++i) {
         format(name, sizeof (name), "row %i", i);
-        MySQL_AddRow(batch, name, 1);
+        MySQL_AddBatchRow(batch, name, 1);
     }
 
     ASSERT(MySQL_RunBatch(batch));
@@ -174,7 +174,7 @@ test CopiesValuesAtOnce() {
 
     for (new i; i != 300; ++i) {
         format(name, sizeof (name), "copy %i", i);
-        MySQL_AddRow(batch, name, i);
+        MySQL_AddBatchRow(batch, name, i);
     }
 
     name = "changed afterwards";
@@ -186,7 +186,7 @@ test CopiesValuesAtOnce() {
 
 test SplitsWhatDoesNotFit() {
     new const
-        Statement:big = MySQL_Prepare(gDatabase, "INSERT INTO mysql_statements_test (name, amount, big) VALUES (%q, %i, %q)")
+        Statement:big = MySQL_PrepareStatement(gDatabase, "INSERT INTO mysql_statements_test (name, amount, big) VALUES (%q, %i, %q)")
     ;
 
     new
@@ -201,7 +201,7 @@ test SplitsWhatDoesNotFit() {
 
     for (new i; i != 3000; ++i) {
         format(name, sizeof (name), "big %i", i);
-        MySQL_AddRow(batch, name, i, text);
+        MySQL_AddBatchRow(batch, name, i, text);
     }
 
     ASSERT(MySQL_RunBatch(batch));
@@ -212,7 +212,7 @@ test SplitsWhatDoesNotFit() {
 
 test SplitBatchIsAllOrNothing() {
     new const
-        Statement:big = MySQL_Prepare(gDatabase, "INSERT INTO mysql_statements_test (name, amount, big) VALUES (%q, %i, %q)")
+        Statement:big = MySQL_PrepareStatement(gDatabase, "INSERT INTO mysql_statements_test (name, amount, big) VALUES (%q, %i, %q)")
     ;
 
     new
@@ -227,10 +227,10 @@ test SplitBatchIsAllOrNothing() {
 
     for (new i; i != 3000; ++i) {
         format(name, sizeof (name), "whole %i", i);
-        MySQL_AddRow(batch, name, i, text);
+        MySQL_AddBatchRow(batch, name, i, text);
     }
 
-    MySQL_AddRow(batch, "whole 0", 0, text);
+    MySQL_AddBatchRow(batch, "whole 0", 0, text);
     gErrors = 0;
     ASSERT_FALSE(MySQL_RunBatch(batch));
     ASSERT_EQ(MySQL_GetErrno(), 1062);
@@ -244,7 +244,7 @@ test FailedBatchCallsBack() {
         Batch:batch = MySQL_CreateBatch(gInsert)
     ;
 
-    MySQL_AddRow(batch, "alpha", 1, 1.0);
+    MySQL_AddBatchRow(batch, "alpha", 1, 1.0);
     Test_Async(3000);
     ASSERT(MySQL_ExecuteBatch(batch, "OnBatchFailed", 9));
 }
@@ -285,7 +285,7 @@ test WritesJSON() {
     ASSERT_SAME(text, written);
 
     new const
-        Statement:json = MySQL_Prepare(gDatabase, "INSERT INTO mysql_statements_test (name, amount, doc) VALUES (%q, %i, %Q)"),
+        Statement:json = MySQL_PrepareStatement(gDatabase, "INSERT INTO mysql_statements_test (name, amount, doc) VALUES (%q, %i, %Q)"),
         Query:doc = MySQL_CreateQuery(gDatabase)
     ;
 
@@ -308,18 +308,18 @@ test RefusesWrongValues() {
     ;
 
     ASSERT_FALSE(MySQL_RunStatement(gInsert, "only a name"));
-    ASSERT_FALSE(MySQL_AddRow(batch, "two", 2));
+    ASSERT_FALSE(MySQL_AddBatchRow(batch, "two", 2));
     ASSERT_EQ(MySQL_GetBatchRows(batch), 0);
-    ASSERT_FALSE(MySQL_Execute(gInsert, "", 0, "too", 1, 1.0, 4));
-    ASSERT_EQ(MySQL_Prepare(gDatabase, "SELECT %z"), INVALID_STATEMENT_ID);
-    ASSERT_EQ(MySQL_Prepare(INVALID_MYSQL_ID, "SELECT 1"), INVALID_STATEMENT_ID);
+    ASSERT_FALSE(MySQL_ExecuteStatement(gInsert, "", 0, "too", 1, 1.0, 4));
+    ASSERT_EQ(MySQL_PrepareStatement(gDatabase, "SELECT %z"), INVALID_STATEMENT_ID);
+    ASSERT_EQ(MySQL_PrepareStatement(INVALID_MYSQL_ID, "SELECT 1"), INVALID_STATEMENT_ID);
     ASSERT(MySQL_DestroyBatch(batch));
     ASSERT_FALSE(MySQL_DestroyBatch(batch));
 }
 
 test ReportsBadStatements() {
     new const
-        Statement:bad = MySQL_Prepare(gDatabase, "SELEC nothing FROM %i")
+        Statement:bad = MySQL_PrepareStatement(gDatabase, "SELEC nothing FROM %i")
     ;
 
     ASSERT_NE(bad, INVALID_STATEMENT_ID);
@@ -329,7 +329,7 @@ test ReportsBadStatements() {
     ASSERT_GE(gErrors, 1);
 
     new const
-        Statement:own = MySQL_Prepare(gDatabase, "SELECT ? + %i AS sum")
+        Statement:own = MySQL_PrepareStatement(gDatabase, "SELECT ? + %i AS sum")
     ;
 
     ASSERT_FALSE(MySQL_RunStatement(own, 1));
@@ -340,7 +340,7 @@ test ReportsBadStatements() {
 
 test ClosesStatements() {
     new const
-        Statement:select = MySQL_Prepare(gDatabase, "SELECT %i AS one"),
+        Statement:select = MySQL_PrepareStatement(gDatabase, "SELECT %i AS one"),
         Batch:batch = MySQL_CreateBatch(select)
     ;
 
@@ -353,7 +353,7 @@ test ClosesStatements() {
 
 test PreparesAgainAfterReconnect() {
     new const
-        Statement:select = MySQL_Prepare(gDatabase, "SELECT %i * 2 AS twice")
+        Statement:select = MySQL_PrepareStatement(gDatabase, "SELECT %i * 2 AS twice")
     ;
 
     ASSERT(MySQL_RunStatement(select, 4));
@@ -370,9 +370,9 @@ test KeepsBatchesApart() {
         Batch:second = MySQL_CreateBatch(gUpsert)
     ;
 
-    MySQL_AddRow(first, "apart 1", 1);
-    MySQL_AddRow(second, "apart 2", 2);
-    MySQL_AddRow(first, "apart 3", 3);
+    MySQL_AddBatchRow(first, "apart 1", 1);
+    MySQL_AddBatchRow(second, "apart 2", 2);
+    MySQL_AddBatchRow(first, "apart 3", 3);
     ASSERT_EQ(MySQL_GetBatchRows(first), 2);
     ASSERT_EQ(MySQL_GetBatchRows(second), 1);
     ASSERT(MySQL_RunBatch(second));

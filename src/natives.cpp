@@ -400,7 +400,7 @@ cell AMX_NATIVE_CALL MySQL_Send(AMX* amx, const cell* params) {
 	return queue(amx, params, 0, 0, 2, false);
 }
 
-cell AMX_NATIVE_CALL MySQL_Query(AMX* amx, const cell* params) {
+cell AMX_NATIVE_CALL MySQL_ThreadedQuery(AMX* amx, const cell* params) {
 	return queue(amx, params, 2, 3, 4, false);
 }
 
@@ -547,7 +547,7 @@ cell AMX_NATIVE_CALL MySQL_ClearQuery(AMX* amx, const cell* params) {
 	return true;
 }
 
-cell AMX_NATIVE_CALL MySQL_Prepare(AMX* amx, const cell* params) {
+cell AMX_NATIVE_CALL MySQL_PrepareStatement(AMX* amx, const cell* params) {
 	static std::string pattern;
 	Connection* connection = connectionOf(params[1]);
 	Script* script = scriptOf(amx);
@@ -557,7 +557,7 @@ cell AMX_NATIVE_CALL MySQL_Prepare(AMX* amx, const cell* params) {
 	PreparedStatement prepared;
 	std::string error;
 	if (!parseStatement(pattern, prepared.sql, prepared.types, error)) {
-		logError("[MySQL] MySQL_Prepare: %s.", error.c_str());
+		logError("[MySQL] MySQL_PrepareStatement: %s.", error.c_str());
 		return 0;
 	}
 	prepared.connection = connection->id();
@@ -578,7 +578,7 @@ cell AMX_NATIVE_CALL MySQL_Prepare(AMX* amx, const cell* params) {
 	return id;
 }
 
-cell AMX_NATIVE_CALL MySQL_Execute(AMX* amx, const cell* params) {
+cell AMX_NATIVE_CALL MySQL_ExecuteStatement(AMX* amx, const cell* params) {
 	Script* script = scriptOf(amx);
 	PreparedStatement* prepared = statementOf(amx, params[1]);
 	Connection* connection = prepared == nullptr ? nullptr : connectionOf(prepared->connection);
@@ -589,7 +589,7 @@ cell AMX_NATIVE_CALL MySQL_Execute(AMX* amx, const cell* params) {
 	rows->init(prepared->types);
 	std::string error;
 	if (!readRow(amx, params, 4, prepared->types, *rows, error)) {
-		logError("[MySQL] MySQL_Execute: %s.", error.c_str());
+		logError("[MySQL] MySQL_ExecuteStatement: %s.", error.c_str());
 		return false;
 	}
 	if (!admitStatement(*connection, *prepared, *rows)) {
@@ -638,7 +638,7 @@ cell AMX_NATIVE_CALL MySQL_CreateBatch(AMX* amx, const cell* params) {
 	return id;
 }
 
-cell AMX_NATIVE_CALL MySQL_AddRow(AMX* amx, const cell* params) {
+cell AMX_NATIVE_CALL MySQL_AddBatchRow(AMX* amx, const cell* params) {
 	Batch* batch = batchOf(amx, params[1]);
 	PreparedStatement* prepared = batch == nullptr ? nullptr : statementOf(amx, batch->statement);
 	if (prepared == nullptr) {
@@ -646,7 +646,7 @@ cell AMX_NATIVE_CALL MySQL_AddRow(AMX* amx, const cell* params) {
 	}
 	std::string error;
 	if (!readRow(amx, params, 2, prepared->types, batch->rows, error)) {
-		logError("[MySQL] MySQL_AddRow: %s.", error.c_str());
+		logError("[MySQL] MySQL_AddBatchRow: %s.", error.c_str());
 		return false;
 	}
 	return true;
@@ -1182,7 +1182,7 @@ const AMX_NATIVE_INFO natives[] = {
 	{ "MySQL_GetPendingCount", MySQL_GetPendingCount },
 	{ "MySQL_GetStats", MySQL_GetStats },
 	{ "MySQL_Send", MySQL_Send },
-	{ "MySQL_Query", MySQL_Query },
+	{ "MySQL_ThreadedQuery", MySQL_ThreadedQuery },
 	{ "MySQL_ParallelQuery", MySQL_ParallelQuery },
 	{ "MySQL_Run", MySQL_Run },
 	{ "MySQL_Format", MySQL_Format },
@@ -1194,11 +1194,11 @@ const AMX_NATIVE_INFO natives[] = {
 	{ "MySQL_RunQuery", MySQL_RunQuery },
 	{ "MySQL_DestroyQuery", MySQL_DestroyQuery },
 	{ "MySQL_ClearQuery", MySQL_ClearQuery },
-	{ "MySQL_Prepare", MySQL_Prepare },
-	{ "MySQL_Execute", MySQL_Execute },
+	{ "MySQL_PrepareStatement", MySQL_PrepareStatement },
+	{ "MySQL_ExecuteStatement", MySQL_ExecuteStatement },
 	{ "MySQL_RunStatement", MySQL_RunStatement },
 	{ "MySQL_CreateBatch", MySQL_CreateBatch },
-	{ "MySQL_AddRow", MySQL_AddRow },
+	{ "MySQL_AddBatchRow", MySQL_AddBatchRow },
 	{ "MySQL_GetBatchRows", MySQL_GetBatchRows },
 	{ "MySQL_ExecuteBatch", MySQL_ExecuteBatch },
 	{ "MySQL_RunBatch", MySQL_RunBatch },

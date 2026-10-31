@@ -36,7 +36,7 @@ test RefusesLongQueries() {
     ASSERT(MySQL_Run(handle, "SELECT 1"));
     ASSERT_FALSE(MySQL_Run(handle, "SELECT '%s'", "a string that makes the query too long for the limit"));
     ASSERT_FALSE(MySQL_Send(handle, "SELECT '%s'", "a string that makes the query too long for the limit"));
-    ASSERT_FALSE(MySQL_Query(handle, "@Settings_Pending", 0, "SELECT '%s'", "a string that makes the query too long for the limit"));
+    ASSERT_FALSE(MySQL_ThreadedQuery(handle, "@Settings_Pending", 0, "SELECT '%s'", "a string that makes the query too long for the limit"));
 
     new const
         Query:query = MySQL_CreateQuery(handle, "SELECT '%s'", "a string that makes the query too long")

@@ -44,9 +44,9 @@ public OnGameModeInit() {
         )\
     ");
 
-    gFindAccount = MySQL_Prepare(gDatabase, "SELECT id, hash, score FROM accounts WHERE name = %q");
-    gAddAccount = MySQL_Prepare(gDatabase, "INSERT INTO accounts (name, hash) VALUES (%q, %q)");
-    gSaveScore = MySQL_Prepare(gDatabase, "UPDATE accounts SET score = %i WHERE id = %i");
+    gFindAccount = MySQL_PrepareStatement(gDatabase, "SELECT id, hash, score FROM accounts WHERE name = %q");
+    gAddAccount = MySQL_PrepareStatement(gDatabase, "INSERT INTO accounts (name, hash) VALUES (%q, %q)");
+    gSaveScore = MySQL_PrepareStatement(gDatabase, "UPDATE accounts SET score = %i WHERE id = %i");
 
     SetTimer("SaveScores", 60000, true);
 
@@ -62,7 +62,7 @@ public OnPlayerConnect(playerid) {
     gLoggedIn[playerid] = false;
     gHash[playerid][0] = EOS;
     GetPlayerName(playerid, name, sizeof (name));
-    MySQL_Execute(gFindAccount, "OnAccountFound", playerid, name);
+    MySQL_ExecuteStatement(gFindAccount, "OnAccountFound", playerid, name);
 
     return 1;
 }
@@ -117,7 +117,7 @@ public OnRegisterHashed(playerid, const hash[]) {
 
     GetPlayerName(playerid, name, sizeof (name));
     strcopy(gHash[playerid], hash);
-    MySQL_Execute(gAddAccount, "OnAccountAdded", playerid, name, hash);
+    MySQL_ExecuteStatement(gAddAccount, "OnAccountAdded", playerid, name, hash);
 
     return 1;
 }
@@ -152,7 +152,7 @@ public SaveScores() {
 
     for (new i; i != MAX_PLAYERS; ++i) {
         if (IsPlayerConnected(i) && gLoggedIn[i]) {
-            MySQL_AddRow(batch, GetPlayerScore(i), gAccount[i]);
+            MySQL_AddBatchRow(batch, GetPlayerScore(i), gAccount[i]);
         }
     }
 
@@ -171,7 +171,7 @@ public OnScoresSaved(players) {
 
 public OnPlayerDisconnect(playerid, reason) {
     if (gLoggedIn[playerid]) {
-        MySQL_Execute(gSaveScore, "", 0, GetPlayerScore(playerid), gAccount[playerid]);
+        MySQL_ExecuteStatement(gSaveScore, "", 0, GetPlayerScore(playerid), gAccount[playerid]);
     }
 
     gLoggedIn[playerid] = false;

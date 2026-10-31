@@ -140,9 +140,9 @@ test KeepsLatin1() {
 
 test RunsInOrder() {
     Test_Async(3000);
-    ASSERT(MySQL_Query(gDatabase, "OnOrdered", 1, "SELECT SLEEP(%f)", 0.2));
-    ASSERT(MySQL_Query(gDatabase, "OnOrdered", 2, "SELECT 2"));
-    ASSERT(MySQL_Query(gDatabase, "OnOrdered", 3, "SELECT 3"));
+    ASSERT(MySQL_ThreadedQuery(gDatabase, "OnOrdered", 1, "SELECT SLEEP(%f)", 0.2));
+    ASSERT(MySQL_ThreadedQuery(gDatabase, "OnOrdered", 2, "SELECT 2"));
+    ASSERT(MySQL_ThreadedQuery(gDatabase, "OnOrdered", 3, "SELECT 3"));
 }
 
 public OnOrdered(step) {
@@ -160,7 +160,7 @@ public OnOrdered(step) {
 test FailureCallsBack() {
     gErrors = 0;
     Test_Async(3000);
-    ASSERT(MySQL_Query(gDatabase, "OnFailed", 7, "SELEKT 1"));
+    ASSERT(MySQL_ThreadedQuery(gDatabase, "OnFailed", 7, "SELEKT 1"));
 }
 
 public OnFailed(context) {
@@ -331,7 +331,7 @@ test ReadsLatin1JSON() {
 
 test KeepsResults() {
     Test_Async(3000);
-    ASSERT(MySQL_Query(gDatabase, "OnKept", 0, "SELECT 41 + 1 AS answer"));
+    ASSERT(MySQL_ThreadedQuery(gDatabase, "OnKept", 0, "SELECT 41 + 1 AS answer"));
 }
 
 public OnKept(context) {
@@ -357,7 +357,7 @@ test UsesKeptResults() {
 
 test RunsInsideCallbacks() {
     Test_Async(3000);
-    ASSERT(MySQL_Query(gDatabase, "OnRunInside", 0, "SELECT 1 AS outside"));
+    ASSERT(MySQL_ThreadedQuery(gDatabase, "OnRunInside", 0, "SELECT 1 AS outside"));
 }
 
 public OnRunInside(context) {
@@ -393,7 +393,7 @@ test FormatsIntoArrays() {
 
 test RefusesBadQueries() {
     ASSERT_FALSE(MySQL_Send(MySQL:99, "SELECT 1"));
-    ASSERT_FALSE(MySQL_Query(MySQL:99, "OnOrdered", 0, "SELECT 1"));
+    ASSERT_FALSE(MySQL_ThreadedQuery(MySQL:99, "OnOrdered", 0, "SELECT 1"));
     ASSERT_FALSE(MySQL_Send(gDatabase, "SELECT %z", 1));
     ASSERT_FALSE(MySQL_Send(gDatabase, "SELECT %i"));
     ASSERT_FALSE(MySQL_Run(gDatabase, "SELECT * FROM no_such_table"));

@@ -27,8 +27,8 @@
  * A prepared statement is sent to the server once and then run with values that are never escaped
  * or parsed again. Its text takes the same specifiers, each one a value: `%i`, `%d` and `%x` an
  * integer, `%u` an unsigned one, `%f` a float, `%s`, `%e`, `%q` and `%j` a string, bound as it is,
- * and `%Q` the text of a query being built, as a string. `MySQL_Execute` runs it once, results
- * included. A batch gathers rows of values with `MySQL_AddRow` and sends them together with
+ * and `%Q` the text of a query being built, as a string. `MySQL_ExecuteStatement` runs it once, results
+ * included. A batch gathers rows of values with `MySQL_AddBatchRow` and sends them together with
  * `MySQL_ExecuteBatch`. On MariaDB 10.2 or later the rows go to the server as arrays in one command,
  * split to fit `max_allowed_packet`, and on other servers they run one by one. A batch sent in
  * more than one command runs in a transaction of its own, unless one is open already, so it
@@ -264,12 +264,12 @@ native bool:MySQL_Send(MySQL:handle, const query[], MYSQL_TAGS:...);
  *             - `false` the handle does not exist, the format is not valid, or a limit of the
  *               connection refused it, and the public is not called
  */
-native bool:MySQL_Query(MySQL:handle, const callback[], context, const query[], MYSQL_TAGS:...);
+native bool:MySQL_ThreadedQuery(MySQL:handle, const callback[], context, const query[], MYSQL_TAGS:...);
 
 /**
  * @brief      Send a query that any connection of the pool may run, out of order with the rest.
  *
- * Without a pool, it runs in order as `MySQL_Query` does.
+ * Without a pool, it runs in order as `MySQL_ThreadedQuery` does.
  *
  * @param      handle    Handle to send it through.
  * @param      callback  Public to call.
@@ -418,7 +418,7 @@ native bool:MySQL_ClearQuery(Query:query);
  * @return     - the statement
  *             - `INVALID_STATEMENT_ID` the handle does not exist or a specifier is not valid
  */
-native Statement:MySQL_Prepare(MySQL:handle, const query[]);
+native Statement:MySQL_PrepareStatement(MySQL:handle, const query[]);
 
 /**
  * @brief      Run a statement once, after the queries sent before it.
@@ -434,7 +434,7 @@ native Statement:MySQL_Prepare(MySQL:handle, const query[]);
  *             - `false` the statement does not exist, the values do not match it, or a limit of
  *               the connection refused it
  */
-native bool:MySQL_Execute(Statement:statement, const callback[] = "", context = 0, MYSQL_TAGS:...);
+native bool:MySQL_ExecuteStatement(Statement:statement, const callback[] = "", context = 0, MYSQL_TAGS:...);
 
 /**
  * @brief      Run a statement once and wait for it, as `MySQL_Run` does.
@@ -468,7 +468,7 @@ native Batch:MySQL_CreateBatch(Statement:statement);
  *             - `false` the batch does not exist or the values do not match its statement, and
  *               nothing is added
  */
-native bool:MySQL_AddRow(Batch:batch, MYSQL_TAGS:...);
+native bool:MySQL_AddBatchRow(Batch:batch, MYSQL_TAGS:...);
 
 /**
  * @brief      The rows added to a batch.

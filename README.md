@@ -47,7 +47,7 @@ public OnPlayerConnect(playerid) {
     ;
 
     GetPlayerName(playerid, name, sizeof (name));
-    MySQL_Query(gDatabase, "OnScoreRead", playerid, "SELECT score FROM players WHERE name = %q", name);
+    MySQL_ThreadedQuery(gDatabase, "OnScoreRead", playerid, "SELECT score FROM players WHERE name = %q", name);
 
     return 1;
 }
@@ -82,7 +82,7 @@ new
 ;
 
 stock PrepareStatements() {
-    gSaveScore = MySQL_Prepare(gDatabase, "UPDATE players SET score = %i WHERE id = %i");
+    gSaveScore = MySQL_PrepareStatement(gDatabase, "UPDATE players SET score = %i WHERE id = %i");
 }
 
 stock SaveScores() {
@@ -92,7 +92,7 @@ stock SaveScores() {
 
     for (new i; i != MAX_PLAYERS; ++i) {
         if (IsPlayerConnected(i)) {
-            MySQL_AddRow(batch, GetPlayerScore(i), gPlayerId[i]);
+            MySQL_AddBatchRow(batch, GetPlayerScore(i), gPlayerId[i]);
         }
     }
 
