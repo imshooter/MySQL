@@ -79,14 +79,14 @@ test ReadsCells() {
     ASSERT_EQ(MySQL_GetErrno(), 0);
     ASSERT_EQ(MySQL_GetRowCount(), 1);
     ASSERT_EQ(MySQL_GetFieldCount(), 5);
-    ASSERT_EQ(MySQL_GetInt(0, "sum"), 3);
-    ASSERT(MySQL_GetString(0, "word", text));
+    ASSERT_EQ(CellInt(0, "sum"), 3);
+    ASSERT(MySQL_GetValue(0, "word", text));
     ASSERT_SAME(text, "text");
     ASSERT(MySQL_IsNull(0, "nothing"));
-    ASSERT_FALSE(MySQL_GetString(0, "nothing", text));
-    ASSERT_SAME(text, "");
-    ASSERT_NEAR(MySQL_GetFloat(0, "half"), 1.5, 0.0001);
-    MySQL_GetString(0, "fixed", text);
+    ASSERT_FALSE(MySQL_GetValue(0, "nothing", text));
+    ASSERT_SAME(text, "text");
+    ASSERT_NEAR(CellFloat(0, "half"), 1.5, 0.0001);
+    MySQL_GetValue(0, "fixed", text);
     ASSERT_SAME(text, "2.35");
     MySQL_GetFieldName(1, text);
     ASSERT_SAME(text, "word");
@@ -100,7 +100,7 @@ test TruncatesStrings() {
     ;
 
     ASSERT(MySQL_Run(gDatabase, "SELECT 'abcdef' AS word"));
-    ASSERT(MySQL_GetString(0, "word", text));
+    ASSERT(MySQL_GetValue(0, "word", text));
     ASSERT_SAME(text, "abc");
 }
 
@@ -118,7 +118,7 @@ test EscapesText() {
     ASSERT_EQ(MySQL_GetAffectedRows(), 1);
     ASSERT(MySQL_Run(gDatabase, "SELECT name FROM mysql_queries_test WHERE name = %q", name));
     ASSERT_EQ(MySQL_GetRowCount(), 1);
-    MySQL_GetString(0, "name", stored);
+    MySQL_GetValue(0, "name", stored);
     ASSERT_SAME(stored, name);
 }
 
@@ -133,9 +133,9 @@ test KeepsLatin1() {
 
     ASSERT(MySQL_Run(gDatabase, "INSERT INTO mysql_queries_test (name) VALUES (%q)", name));
     ASSERT(MySQL_Run(gDatabase, "SELECT name, CHAR_LENGTH(name) AS characters FROM mysql_queries_test WHERE id = %i", MySQL_GetInsertID()));
-    MySQL_GetString(0, "name", stored);
+    MySQL_GetValue(0, "name", stored);
     ASSERT_SAME(stored, name);
-    ASSERT_EQ(MySQL_GetInt(0, "characters"), 5);
+    ASSERT_EQ(CellInt(0, "characters"), 5);
 }
 
 test RunsInOrder() {
@@ -201,11 +201,11 @@ public OnParallel(step) {
 test ReadsResultSets() {
     ASSERT(MySQL_Run(gDatabase, "SELECT 1 AS a; SELECT 2 AS b, 3 AS c"));
     ASSERT_EQ(MySQL_GetResultSetCount(), 2);
-    ASSERT_EQ(MySQL_GetInt(0, "a"), 1);
+    ASSERT_EQ(CellInt(0, "a"), 1);
     ASSERT(MySQL_SelectResultSet(1));
     ASSERT_EQ(MySQL_GetFieldCount(), 2);
-    ASSERT_EQ(MySQL_GetInt(0, "b"), 2);
-    ASSERT_EQ(MySQL_GetInt(0, "c"), 3);
+    ASSERT_EQ(CellInt(0, "b"), 2);
+    ASSERT_EQ(CellInt(0, "c"), 3);
     ASSERT_FALSE(MySQL_SelectResultSet(2));
 }
 
@@ -246,7 +246,7 @@ test JoinsBuiltQueries() {
     ASSERT(MySQL_DestroyQuery(rows));
     ASSERT_FALSE(MySQL_AppendQuery(whole, " %Q", rows));
     ASSERT(MySQL_RunQuery(whole));
-    ASSERT_EQ(MySQL_GetInt(0, "total"), 3);
+    ASSERT_EQ(CellInt(0, "total"), 3);
 }
 
 test ReadsRows() {
@@ -269,7 +269,10 @@ test ReadsRows() {
 
 test ReadsJSON() {
     new
-        text[32]
+        text[32],
+        number,
+        Float:ratio,
+        bool:flag
     ;
 
     ASSERT(MySQL_Run(gDatabase, "SELECT '{\"name\":\"Bag\",\"amount\":3,\"price\":1.5,\"ok\":true,\"pos\":[1,2,3],\"inner\":{\"x\":9}}' AS data, 'not json' AS plain"));
@@ -280,23 +283,30 @@ test ReadsJSON() {
     ASSERT(MySQL_GetJSONKey(0, "data", 5, text));
     ASSERT_SAME(text, "inner");
     ASSERT_FALSE(MySQL_GetJSONKey(0, "data", 6, text));
-    ASSERT(MySQL_GetJSONString(0, "data", "name", text));
+    ASSERT(MySQL_GetJSONValue(0, "data", "name", text));
     ASSERT_SAME(text, "Bag");
-    ASSERT_EQ(MySQL_GetJSONInt(0, "data", "amount"), 3);
-    ASSERT_NEAR(MySQL_GetJSONFloat(0, "data", "price"), 1.5, 0.0001);
-    ASSERT(MySQL_GetJSONBool(0, "data", "ok"));
+    ASSERT_EQ(JSONInt(0, "data", "amount"), 3);
+    ASSERT_NEAR(JSONFloat(0, "data", "price"), 1.5, 0.0001);
+    ASSERT(JSONBool(0, "data", "ok"));
     ASSERT_EQ(MySQL_GetJSONType(0, "data", "pos"), MYSQL_JSON_ARRAY);
     ASSERT_EQ(MySQL_GetJSONCount(0, "data", "pos"), 3);
-    ASSERT_EQ(MySQL_GetJSONInt(0, "data", "/pos/1"), 2);
-    ASSERT_EQ(MySQL_GetJSONInt(0, "data", "/inner/x"), 9);
-    ASSERT(MySQL_GetJSONString(0, "data", "inner", text));
+    ASSERT_EQ(JSONInt(0, "data", "/pos/1"), 2);
+    ASSERT_EQ(JSONInt(0, "data", "/inner/x"), 9);
+    ASSERT(MySQL_GetJSONValue(0, "data", "inner", text));
     ASSERT_SAME(text, "{\"x\":9}");
     ASSERT_EQ(MySQL_GetJSONType(0, "data", "missing"), MYSQL_JSON_NONE);
     ASSERT_EQ(MySQL_GetJSONType(0, "plain"), MYSQL_JSON_NONE);
-    ASSERT_EQ(MySQL_GetJSONInt(0, "data", "missing", 7), 7);
-    ASSERT_NEAR(MySQL_GetJSONFloat(0, "data", "missing", 2.5), 2.5, 0.0001);
-    ASSERT(MySQL_GetJSONBool(0, "data", "missing", true));
-    ASSERT_EQ(MySQL_GetJSONInt(0, "data", "amount", 7), 3);
+    number = 7;
+    ASSERT_FALSE(MySQL_GetJSONValueInt(0, "data", "missing", number));
+    ASSERT_EQ(number, 7);
+    ratio = 2.5;
+    ASSERT_FALSE(MySQL_GetJSONValueFloat(0, "data", "missing", ratio));
+    ASSERT_NEAR(ratio, 2.5, 0.0001);
+    flag = true;
+    ASSERT_FALSE(MySQL_GetJSONValueBool(0, "data", "missing", flag));
+    ASSERT(flag);
+    ASSERT(MySQL_GetJSONValueInt(0, "data", "amount", number));
+    ASSERT_EQ(number, 3);
 }
 
 test ReadsLatin1JSON() {
@@ -311,9 +321,9 @@ test ReadsLatin1JSON() {
     ;
 
     ASSERT(MySQL_Run(gDatabase, "SELECT %q AS data", json));
-    ASSERT(MySQL_GetJSONString(0, "data", key, text));
+    ASSERT(MySQL_GetJSONValue(0, "data", key, text));
     ASSERT_SAME(text, name);
-    ASSERT(MySQL_GetJSONString(0, "data", "escaped", text));
+    ASSERT(MySQL_GetJSONValue(0, "data", "escaped", text));
     ASSERT_SAME(text, "\xE7;\x80;");
     ASSERT(MySQL_GetJSONKey(0, "data", 0, text));
     ASSERT_SAME(text, key);
@@ -321,11 +331,11 @@ test ReadsLatin1JSON() {
     ASSERT(MySQL_Run(gDatabase, "CREATE TEMPORARY TABLE mysql_json_test (data JSON NOT NULL) DEFAULT CHARSET = utf8mb4"));
     ASSERT(MySQL_Run(gDatabase, "INSERT INTO mysql_json_test VALUES (JSON_OBJECT('name', %q, 'flag', TRUE, 'x', %f))", name, 1.5));
     ASSERT(MySQL_Run(gDatabase, "SELECT data, CHAR_LENGTH(JSON_VALUE(data, '$.name')) AS characters FROM mysql_json_test"));
-    ASSERT_EQ(MySQL_GetInt(0, "characters"), 5);
-    ASSERT(MySQL_GetJSONString(0, "data", "name", text));
+    ASSERT_EQ(CellInt(0, "characters"), 5);
+    ASSERT(MySQL_GetJSONValue(0, "data", "name", text));
     ASSERT_SAME(text, name);
-    ASSERT(MySQL_GetJSONBool(0, "data", "flag"));
-    ASSERT_NEAR(MySQL_GetJSONFloat(0, "data", "x"), 1.5, 0.0001);
+    ASSERT(JSONBool(0, "data", "flag"));
+    ASSERT_NEAR(JSONFloat(0, "data", "x"), 1.5, 0.0001);
     ASSERT(MySQL_Run(gDatabase, "DROP TEMPORARY TABLE mysql_json_test"));
 }
 
@@ -338,7 +348,7 @@ public OnKept(context) {
     gKept = MySQL_KeepResult();
     ASSERT_NE(gKept, INVALID_RESULT_ID);
     ASSERT_EQ(MySQL_KeepResult(), gKept);
-    ASSERT_EQ(MySQL_GetInt(0, "answer"), 42);
+    ASSERT_EQ(CellInt(0, "answer"), 42);
     ASSERT_FALSE(MySQL_DestroyResult(gKept));
     Test_Done();
 
@@ -348,9 +358,9 @@ public OnKept(context) {
 test UsesKeptResults() {
     ASSERT(MySQL_Run(gDatabase, "SELECT 1 AS other"));
     ASSERT(MySQL_UseResult(gKept));
-    ASSERT_EQ(MySQL_GetInt(0, "answer"), 42);
+    ASSERT_EQ(CellInt(0, "answer"), 42);
     ASSERT(MySQL_UseResult(INVALID_RESULT_ID));
-    ASSERT_EQ(MySQL_GetInt(0, "other"), 1);
+    ASSERT_EQ(CellInt(0, "other"), 1);
     ASSERT(MySQL_DestroyResult(gKept));
     ASSERT_FALSE(MySQL_UseResult(gKept));
 }
@@ -361,9 +371,9 @@ test RunsInsideCallbacks() {
 }
 
 public OnRunInside(context) {
-    ASSERT_EQ(MySQL_GetInt(0, "outside"), 1);
+    ASSERT_EQ(CellInt(0, "outside"), 1);
     ASSERT(MySQL_Run(gDatabase, "SELECT 5 AS five"));
-    ASSERT_EQ(MySQL_GetInt(0, "five"), 5);
+    ASSERT_EQ(CellInt(0, "five"), 5);
     Test_Done();
 
     return 1;
@@ -414,7 +424,7 @@ test CloseRunsWhatWaits() {
     ASSERT(MySQL_Close(other));
     ASSERT_FALSE(MySQL_Close(other));
     ASSERT(MySQL_Run(gDatabase, "SELECT COUNT(*) AS total FROM mysql_queries_test WHERE name = 'closing'"));
-    ASSERT_EQ(MySQL_GetInt(0, "total"), 50);
+    ASSERT_EQ(CellInt(0, "total"), 50);
 }
 
 test CountsQueries() {

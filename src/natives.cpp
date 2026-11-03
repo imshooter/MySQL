@@ -813,39 +813,41 @@ cell AMX_NATIVE_CALL MySQL_IsNull(AMX* amx, const cell* params) {
 	return !cellOf(amx, params[1], params[2], text, length) || text == nullptr;
 }
 
-cell AMX_NATIVE_CALL MySQL_GetInt(AMX* amx, const cell* params) {
+cell AMX_NATIVE_CALL MySQL_GetValue(AMX* amx, const cell* params) {
 	const char* text = nullptr;
 	uint32_t length = 0;
 	if (!cellOf(amx, params[1], params[2], text, length) || text == nullptr) {
-		return 0;
-	}
-	return cell(toInteger(text, length));
-}
-
-cell AMX_NATIVE_CALL MySQL_GetFloat(AMX* amx, const cell* params) {
-	const char* text = nullptr;
-	uint32_t length = 0;
-	float value = 0.0f;
-	if (cellOf(amx, params[1], params[2], text, length) && text != nullptr) {
-		value = toFloat(text, length);
-	}
-	return amx_ftoc(value);
-}
-
-cell AMX_NATIVE_CALL MySQL_GetBool(AMX* amx, const cell* params) {
-	const char* text = nullptr;
-	uint32_t length = 0;
-	return cellOf(amx, params[1], params[2], text, length) && text != nullptr && toBool(text, length);
-}
-
-cell AMX_NATIVE_CALL MySQL_GetString(AMX* amx, const cell* params) {
-	const char* text = nullptr;
-	uint32_t length = 0;
-	if (!cellOf(amx, params[1], params[2], text, length) || text == nullptr) {
-		writeString(amx, params[3], "", params[4]);
 		return false;
 	}
 	return writeString(amx, params[3], std::string_view(text, length), params[4]) >= 0;
+}
+
+cell AMX_NATIVE_CALL MySQL_GetValueInt(AMX* amx, const cell* params) {
+	const char* text = nullptr;
+	uint32_t length = 0;
+	if (!cellOf(amx, params[1], params[2], text, length) || text == nullptr) {
+		return false;
+	}
+	return writeCell(amx, params[3], cell(toInteger(text, length)));
+}
+
+cell AMX_NATIVE_CALL MySQL_GetValueFloat(AMX* amx, const cell* params) {
+	const char* text = nullptr;
+	uint32_t length = 0;
+	if (!cellOf(amx, params[1], params[2], text, length) || text == nullptr) {
+		return false;
+	}
+	float value = toFloat(text, length);
+	return writeCell(amx, params[3], amx_ftoc(value));
+}
+
+cell AMX_NATIVE_CALL MySQL_GetValueBool(AMX* amx, const cell* params) {
+	const char* text = nullptr;
+	uint32_t length = 0;
+	if (!cellOf(amx, params[1], params[2], text, length) || text == nullptr) {
+		return false;
+	}
+	return writeCell(amx, params[3], toBool(text, length) ? 1 : 0);
 }
 
 cell AMX_NATIVE_CALL MySQL_GetRow(AMX* amx, const cell* params) {
@@ -1056,24 +1058,43 @@ cell AMX_NATIVE_CALL MySQL_GetJSONKey(AMX* amx, const cell* params) {
 	return writeJsonText(amx, params[4], std::string_view(yyjson_get_str(key), yyjson_get_len(key)), params[5], latin1) >= 0;
 }
 
-cell AMX_NATIVE_CALL MySQL_GetJSONInt(AMX* amx, const cell* params) {
-	yyjson_val* value = jsonValue(amx, params[1], params[2], params[3]);
-	if (yyjson_is_int(value)) {
-		return cell(yyjson_get_sint(value));
-	}
-	if (yyjson_is_real(value)) {
-		return cell(yyjson_get_real(value));
-	}
-	if (yyjson_is_bool(value)) {
-		return yyjson_get_bool(value) ? 1 : 0;
+cell AMX_NATIVE_CALL MySQL_GetJSONValue(AMX* amx, const cell* params) {
+	bool latin1 = false;
+	yyjson_val* value = jsonValue(amx, params[1], params[2], params[3], &latin1);
+	if (value == nullptr || yyjson_is_null(value)) {
+		return false;
 	}
 	if (yyjson_is_str(value)) {
-		return cell(toInteger(yyjson_get_str(value), uint32_t(yyjson_get_len(value))));
+		return writeJsonText(amx, params[4], std::string_view(yyjson_get_str(value), yyjson_get_len(value)), params[5], latin1) >= 0;
 	}
-	return optional(params, 4, 0);
+	size_t length = 0;
+	char* text = yyjson_val_write(value, YYJSON_WRITE_ALLOW_INVALID_UNICODE, &length);
+	if (text == nullptr) {
+		return false;
+	}
+	bool written = writeJsonText(amx, params[4], std::string_view(text, length), params[5], latin1) >= 0;
+	std::free(text);
+	return written;
 }
 
-cell AMX_NATIVE_CALL MySQL_GetJSONFloat(AMX* amx, const cell* params) {
+cell AMX_NATIVE_CALL MySQL_GetJSONValueInt(AMX* amx, const cell* params) {
+	yyjson_val* value = jsonValue(amx, params[1], params[2], params[3]);
+	cell result = 0;
+	if (yyjson_is_int(value)) {
+		result = cell(yyjson_get_sint(value));
+	} else if (yyjson_is_real(value)) {
+		result = cell(yyjson_get_real(value));
+	} else if (yyjson_is_bool(value)) {
+		result = yyjson_get_bool(value) ? 1 : 0;
+	} else if (yyjson_is_str(value)) {
+		result = cell(toInteger(yyjson_get_str(value), uint32_t(yyjson_get_len(value))));
+	} else {
+		return false;
+	}
+	return writeCell(amx, params[4], result);
+}
+
+cell AMX_NATIVE_CALL MySQL_GetJSONValueFloat(AMX* amx, const cell* params) {
 	yyjson_val* value = jsonValue(amx, params[1], params[2], params[3]);
 	float result = 0.0f;
 	if (yyjson_is_num(value)) {
@@ -1083,44 +1104,24 @@ cell AMX_NATIVE_CALL MySQL_GetJSONFloat(AMX* amx, const cell* params) {
 	} else if (yyjson_is_str(value)) {
 		result = toFloat(yyjson_get_str(value), uint32_t(yyjson_get_len(value)));
 	} else {
-		return optional(params, 4, 0);
+		return false;
 	}
-	return amx_ftoc(result);
+	return writeCell(amx, params[4], amx_ftoc(result));
 }
 
-cell AMX_NATIVE_CALL MySQL_GetJSONBool(AMX* amx, const cell* params) {
+cell AMX_NATIVE_CALL MySQL_GetJSONValueBool(AMX* amx, const cell* params) {
 	yyjson_val* value = jsonValue(amx, params[1], params[2], params[3]);
+	bool result = false;
 	if (yyjson_is_bool(value)) {
-		return yyjson_get_bool(value);
-	}
-	if (yyjson_is_num(value)) {
-		return yyjson_get_num(value) != 0.0;
-	}
-	if (yyjson_is_str(value)) {
-		return toBool(yyjson_get_str(value), uint32_t(yyjson_get_len(value)));
-	}
-	return optional(params, 4, 0) != 0;
-}
-
-cell AMX_NATIVE_CALL MySQL_GetJSONString(AMX* amx, const cell* params) {
-	bool latin1 = false;
-	yyjson_val* value = jsonValue(amx, params[1], params[2], params[3], &latin1);
-	if (value == nullptr || yyjson_is_null(value)) {
-		writeString(amx, params[4], "", params[5]);
+		result = yyjson_get_bool(value);
+	} else if (yyjson_is_num(value)) {
+		result = yyjson_get_num(value) != 0.0;
+	} else if (yyjson_is_str(value)) {
+		result = toBool(yyjson_get_str(value), uint32_t(yyjson_get_len(value)));
+	} else {
 		return false;
 	}
-	if (yyjson_is_str(value)) {
-		return writeJsonText(amx, params[4], std::string_view(yyjson_get_str(value), yyjson_get_len(value)), params[5], latin1) >= 0;
-	}
-	size_t length = 0;
-	char* text = yyjson_val_write(value, YYJSON_WRITE_ALLOW_INVALID_UNICODE, &length);
-	if (text == nullptr) {
-		writeString(amx, params[4], "", params[5]);
-		return false;
-	}
-	bool written = writeJsonText(amx, params[4], std::string_view(text, length), params[5], latin1) >= 0;
-	std::free(text);
-	return written;
+	return writeCell(amx, params[4], result ? 1 : 0);
 }
 
 cell submitPassword(AMX* amx, std::unique_ptr<PasswordJob> job, cell callback, cell context) {
@@ -1218,10 +1219,10 @@ const AMX_NATIVE_INFO natives[] = {
 	{ "MySQL_GetInsertID", MySQL_GetInsertID },
 	{ "MySQL_GetWarningCount", MySQL_GetWarningCount },
 	{ "MySQL_IsNull", MySQL_IsNull },
-	{ "MySQL_GetInt", MySQL_GetInt },
-	{ "MySQL_GetFloat", MySQL_GetFloat },
-	{ "MySQL_GetBool", MySQL_GetBool },
-	{ "MySQL_GetString", MySQL_GetString },
+	{ "MySQL_GetValue", MySQL_GetValue },
+	{ "MySQL_GetValueInt", MySQL_GetValueInt },
+	{ "MySQL_GetValueFloat", MySQL_GetValueFloat },
+	{ "MySQL_GetValueBool", MySQL_GetValueBool },
 	{ "MySQL_GetRow", MySQL_GetRow },
 	{ "MySQL_KeepResult", MySQL_KeepResult },
 	{ "MySQL_UseResult", MySQL_UseResult },
@@ -1229,10 +1230,10 @@ const AMX_NATIVE_INFO natives[] = {
 	{ "MySQL_GetJSONType", MySQL_GetJSONType },
 	{ "MySQL_GetJSONCount", MySQL_GetJSONCount },
 	{ "MySQL_GetJSONKey", MySQL_GetJSONKey },
-	{ "MySQL_GetJSONInt", MySQL_GetJSONInt },
-	{ "MySQL_GetJSONFloat", MySQL_GetJSONFloat },
-	{ "MySQL_GetJSONBool", MySQL_GetJSONBool },
-	{ "MySQL_GetJSONString", MySQL_GetJSONString },
+	{ "MySQL_GetJSONValue", MySQL_GetJSONValue },
+	{ "MySQL_GetJSONValueInt", MySQL_GetJSONValueInt },
+	{ "MySQL_GetJSONValueFloat", MySQL_GetJSONValueFloat },
+	{ "MySQL_GetJSONValueBool", MySQL_GetJSONValueBool },
 	{ "MySQL_HashArgon2", MySQL_HashArgon2 },
 	{ "MySQL_HashBcrypt", MySQL_HashBcrypt },
 	{ "MySQL_VerifyPassword", MySQL_VerifyPassword },

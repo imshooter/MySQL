@@ -53,8 +53,12 @@ public OnPlayerConnect(playerid) {
 }
 
 public OnScoreRead(playerid) {
-    if (MySQL_GetRowCount() != 0) {
-        SetPlayerScore(playerid, MySQL_GetInt(0, "score"));
+    new
+        score
+    ;
+
+    if (MySQL_GetValueInt(0, "score", score)) {
+        SetPlayerScore(playerid, score);
     }
 
     return 1;

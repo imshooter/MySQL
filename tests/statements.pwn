@@ -60,7 +60,7 @@ public OnMySQLError(MySQL:handle, errorid, const error[], const query[], const c
 stock Count(const where[]) {
     MySQL_Run(gDatabase, "SELECT COUNT(*) AS total FROM mysql_statements_test WHERE %s", where);
 
-    return MySQL_GetInt(0, "total");
+    return CellInt(0, "total");
 }
 
 test RunsOnce() {
@@ -83,13 +83,13 @@ test SelectsWithValues() {
     ASSERT(MySQL_RunStatement(select, 41, -1, "alpha"));
     ASSERT_EQ(MySQL_GetRowCount(), 1);
     ASSERT_EQ(MySQL_GetFieldCount(), 6);
-    ASSERT(MySQL_GetString(0, "name", text));
+    ASSERT(MySQL_GetValue(0, "name", text));
     ASSERT_SAME(text, "alpha");
-    ASSERT_EQ(MySQL_GetInt(0, "amount"), 5);
-    ASSERT_NEAR(MySQL_GetFloat(0, "ratio"), 1.5, 0.0001);
+    ASSERT_EQ(CellInt(0, "amount"), 5);
+    ASSERT_NEAR(CellFloat(0, "ratio"), 1.5, 0.0001);
     ASSERT(MySQL_IsNull(0, "nothing"));
-    ASSERT_EQ(MySQL_GetInt(0, "next"), 42);
-    MySQL_GetString(0, "big", text);
+    ASSERT_EQ(CellInt(0, "next"), 42);
+    MySQL_GetValue(0, "big", text);
     ASSERT_SAME(text, "4294967295");
     ASSERT(MySQL_RunStatement(select, 0, 0, "nobody"));
     ASSERT_EQ(MySQL_GetRowCount(), 0);
@@ -106,7 +106,7 @@ test ReadsLongCells() {
     ;
 
     ASSERT(MySQL_RunStatement(select, "abc", 100));
-    ASSERT(MySQL_GetString(0, "long_text", text));
+    ASSERT(MySQL_GetValue(0, "long_text", text));
     ASSERT_EQ(strlen(text), 300);
     ASSERT_EQ(text[299], 'c');
     MySQL_CloseStatement(select);
@@ -146,8 +146,8 @@ test SendsBatches() {
     ASSERT_EQ(MySQL_GetBatchRows(batch), -1);
     ASSERT_EQ(Count("name LIKE 'row %%'"), 2000);
     MySQL_Run(gDatabase, "SELECT SUM(amount) AS total, MAX(ratio) AS top FROM mysql_statements_test WHERE name LIKE 'row %%'");
-    ASSERT_EQ(MySQL_GetInt(0, "total"), 1999000);
-    ASSERT_NEAR(MySQL_GetFloat(0, "top"), 999.5, 0.001);
+    ASSERT_EQ(CellInt(0, "total"), 1999000);
+    ASSERT_NEAR(CellFloat(0, "top"), 999.5, 0.001);
 }
 
 test UpdatesInBatches() {
@@ -163,7 +163,7 @@ test UpdatesInBatches() {
 
     ASSERT(MySQL_RunBatch(batch));
     MySQL_Run(gDatabase, "SELECT SUM(amount) AS total FROM mysql_statements_test WHERE name LIKE 'row %%'");
-    ASSERT_EQ(MySQL_GetInt(0, "total"), 1999000 - 4950 + 100);
+    ASSERT_EQ(CellInt(0, "total"), 1999000 - 4950 + 100);
 }
 
 test CopiesValuesAtOnce() {
@@ -181,7 +181,7 @@ test CopiesValuesAtOnce() {
     ASSERT(MySQL_RunBatch(batch));
     ASSERT_EQ(Count("name LIKE 'copy %%'"), 300);
     MySQL_Run(gDatabase, "SELECT COUNT(DISTINCT amount) AS total FROM mysql_statements_test WHERE name LIKE 'copy %%'");
-    ASSERT_EQ(MySQL_GetInt(0, "total"), 300);
+    ASSERT_EQ(CellInt(0, "total"), 300);
 }
 
 test SplitsWhatDoesNotFit() {
@@ -296,9 +296,9 @@ test WritesJSON() {
     MySQL_DestroyQuery(doc);
 
     ASSERT(MySQL_Run(gDatabase, "SELECT doc FROM mysql_statements_test WHERE name = 'json'"));
-    ASSERT(MySQL_GetJSONString(0, "doc", "say", text));
+    ASSERT(MySQL_GetJSONValue(0, "doc", "say", text));
     ASSERT_SAME(text, said);
-    ASSERT_EQ(MySQL_GetJSONInt(0, "doc", "n"), 3);
+    ASSERT_EQ(JSONInt(0, "doc", "n"), 3);
     MySQL_CloseStatement(json);
 }
 
@@ -357,10 +357,10 @@ test PreparesAgainAfterReconnect() {
     ;
 
     ASSERT(MySQL_RunStatement(select, 4));
-    ASSERT_EQ(MySQL_GetInt(0, "twice"), 8);
+    ASSERT_EQ(CellInt(0, "twice"), 8);
     MySQL_Run(gDatabase, "KILL CONNECTION_ID()");
     ASSERT(MySQL_RunStatement(select, 5));
-    ASSERT_EQ(MySQL_GetInt(0, "twice"), 10);
+    ASSERT_EQ(CellInt(0, "twice"), 10);
     MySQL_CloseStatement(select);
 }
 
@@ -379,7 +379,7 @@ test KeepsBatchesApart() {
     ASSERT_EQ(Count("name LIKE 'apart %%'"), 1);
     ASSERT(MySQL_RunBatch(first));
     MySQL_Run(gDatabase, "SELECT SUM(amount) AS total FROM mysql_statements_test WHERE name LIKE 'apart %%'");
-    ASSERT_EQ(MySQL_GetInt(0, "total"), 6);
+    ASSERT_EQ(CellInt(0, "total"), 6);
 }
 
 

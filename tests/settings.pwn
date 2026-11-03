@@ -104,7 +104,7 @@ test ReadTimeoutGivesUp() {
     ASSERT_GE(error, 2000);
     ASSERT_LT(waited, 3000);
     ASSERT(MySQL_Run(handle, "SELECT 1 AS one"));
-    ASSERT_EQ(MySQL_GetInt(0, "one"), 1);
+    ASSERT_EQ(CellInt(0, "one"), 1);
     MySQL_Close(handle);
 }
 
@@ -129,7 +129,7 @@ test ReadsTheEnvironment() {
     ASSERT_NE(handle, INVALID_MYSQL_ID);
     ASSERT(MySQL_IsConnected(handle));
     ASSERT(MySQL_Run(handle, "SELECT DATABASE() AS name"));
-    MySQL_GetString(0, "name", name);
+    MySQL_GetValue(0, "name", name);
     ASSERT_SAME(name, TEST_DATABASE);
     MySQL_Close(handle);
     ASSERT_EQ(MySQL_ConnectFile("scriptfiles/envmissing.ini"), INVALID_MYSQL_ID);

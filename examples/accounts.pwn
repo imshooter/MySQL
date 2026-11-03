@@ -74,9 +74,14 @@ public OnAccountFound(playerid) {
         return 1;
     }
 
-    MySQL_GetString(0, "hash", gHash[playerid]);
-    SetPlayerScore(playerid, MySQL_GetInt(0, "score"));
-    gAccount[playerid] = MySQL_GetInt(0, "id");
+    new
+        score
+    ;
+
+    MySQL_GetValue(0, "hash", gHash[playerid]);
+    MySQL_GetValueInt(0, "score", score);
+    MySQL_GetValueInt(0, "id", gAccount[playerid]);
+    SetPlayerScore(playerid, score);
     SendClientMessage(playerid, -1, "Log in with /login <password>.");
 
     return 1;

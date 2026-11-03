@@ -630,41 +630,68 @@ native MySQL_GetWarningCount();
 native bool:MySQL_IsNull(row, const field[]);
 
 /**
- * @brief      A cell of the result read as an integer, `0` when it is NULL.
- *
- * @param      row    The row, from `0`.
- * @param      field  Name of the field.
- */
-native MySQL_GetInt(row, const field[]);
-
-/**
- * @brief      A cell of the result read as a float, `0.0` when it is NULL.
- *
- * @param      row    The row, from `0`.
- * @param      field  Name of the field.
- */
-native Float:MySQL_GetFloat(row, const field[]);
-
-/**
- * @brief      A cell of the result read as a bool, `false` when it is NULL.
- *
- * @param      row    The row, from `0`.
- * @param      field  Name of the field.
- */
-native bool:MySQL_GetBool(row, const field[]);
-
-/**
  * @brief      A cell of the result read as a string.
  *
+ * A cell that is NULL or does not exist leaves `value` as it was, so the array can hold a default.
+ *
  * @param      row    The row, from `0`.
  * @param      field  Name of the field.
- * @param      value  Array for the text, empty when it is NULL.
+ * @param      value  Array for the text.
  * @param      size   Size of the array.
  *
  * @return     - `true` the text was written
  *             - `false` the cell is NULL or does not exist
  */
-native bool:MySQL_GetString(row, const field[], value[], size = sizeof (value));
+native bool:MySQL_GetValue(row, const field[], value[], size = sizeof (value));
+
+/**
+ * @brief      A cell of the result read as an integer.
+ *
+ * A cell that is NULL or does not exist leaves `value` as it was, so the variable can hold a
+ * default.
+ *
+ *     new
+ *         level = 1
+ *     ;
+ *
+ *     MySQL_GetValueInt(0, "level", level);
+ *
+ * @param      row    The row, from `0`.
+ * @param      field  Name of the field.
+ * @param      value  Variable for the integer.
+ *
+ * @return     - `true` the integer was written
+ *             - `false` the cell is NULL or does not exist
+ */
+native bool:MySQL_GetValueInt(row, const field[], &value);
+
+/**
+ * @brief      A cell of the result read as a float.
+ *
+ * A cell that is NULL or does not exist leaves `value` as it was.
+ *
+ * @param      row    The row, from `0`.
+ * @param      field  Name of the field.
+ * @param      value  Variable for the float.
+ *
+ * @return     - `true` the float was written
+ *             - `false` the cell is NULL or does not exist
+ */
+native bool:MySQL_GetValueFloat(row, const field[], &Float:value);
+
+/**
+ * @brief      A cell of the result read as a bool.
+ *
+ * A cell that is NULL or does not exist leaves `value` as it was.
+ *
+ * @param      row    The row, from `0`.
+ * @param      field  Name of the field.
+ * @param      value  Variable for the bool.
+ *
+ * @return     - `true` the bool was written
+ *             - `false` the cell is NULL or does not exist
+ */
+native bool:MySQL_GetValueBool(row, const field[], &bool:value);
 
 /**
  * @brief      Read the cells of a row into variables in one call, field after field.
@@ -752,38 +779,52 @@ native bool:MySQL_GetJSONKey(row, const field[], index, key[], size = sizeof (ke
 /**
  * @brief      A value of a JSON cell as an integer.
  *
- * @param      row       The row, from `0`.
- * @param      field     Name of the field.
- * @param      key       Member of the top object or a JSON Pointer.
- * @param      fallback  What it gives when the value does not exist, is null, or is an object or
- *                       an array.
+ * A value that does not exist, is null, or is an object or an array leaves `value` as it was.
+ *
+ * @param      row    The row, from `0`.
+ * @param      field  Name of the field.
+ * @param      key    Member of the top object or a JSON Pointer.
+ * @param      value  Variable for the integer.
+ *
+ * @return     - `true` the integer was written
+ *             - `false` the value does not exist or is not a number, a bool or a string
  */
-native MySQL_GetJSONInt(row, const field[], const key[], fallback = 0);
+native bool:MySQL_GetJSONValueInt(row, const field[], const key[], &value);
 
 /**
  * @brief      A value of a JSON cell as a float.
  *
- * @param      row       The row, from `0`.
- * @param      field     Name of the field.
- * @param      key       Member of the top object or a JSON Pointer.
- * @param      fallback  What it gives when the value does not exist, is null, or is an object or
- *                       an array.
+ * A value that does not exist, is null, or is an object or an array leaves `value` as it was.
+ *
+ * @param      row    The row, from `0`.
+ * @param      field  Name of the field.
+ * @param      key    Member of the top object or a JSON Pointer.
+ * @param      value  Variable for the float.
+ *
+ * @return     - `true` the float was written
+ *             - `false` the value does not exist or is not a number, a bool or a string
  */
-native Float:MySQL_GetJSONFloat(row, const field[], const key[], Float:fallback = 0.0);
+native bool:MySQL_GetJSONValueFloat(row, const field[], const key[], &Float:value);
 
 /**
  * @brief      A value of a JSON cell as a bool.
  *
- * @param      row       The row, from `0`.
- * @param      field     Name of the field.
- * @param      key       Member of the top object or a JSON Pointer.
- * @param      fallback  What it gives when the value does not exist, is null, or is an object or
- *                       an array.
+ * A value that does not exist, is null, or is an object or an array leaves `value` as it was.
+ *
+ * @param      row    The row, from `0`.
+ * @param      field  Name of the field.
+ * @param      key    Member of the top object or a JSON Pointer.
+ * @param      value  Variable for the bool.
+ *
+ * @return     - `true` the bool was written
+ *             - `false` the value does not exist or is not a number, a bool or a string
  */
-native bool:MySQL_GetJSONBool(row, const field[], const key[], bool:fallback = false);
+native bool:MySQL_GetJSONValueBool(row, const field[], const key[], &bool:value);
 
 /**
  * @brief      A value of a JSON cell as a string. An object or an array is written as JSON.
+ *
+ * A value that does not exist or is null leaves `value` as it was.
  *
  * @param      row    The row, from `0`.
  * @param      field  Name of the field.
@@ -794,7 +835,7 @@ native bool:MySQL_GetJSONBool(row, const field[], const key[], bool:fallback = f
  * @return     - `true` the text was written
  *             - `false` the value does not exist or is null
  */
-native bool:MySQL_GetJSONString(row, const field[], const key[], value[], size = sizeof (value));
+native bool:MySQL_GetJSONValue(row, const field[], const key[], value[], size = sizeof (value));
 
 /**
  * # Passwords

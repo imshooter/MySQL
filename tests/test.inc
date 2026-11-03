@@ -237,3 +237,68 @@ public @Test_Next() {
 
     return 1;
 }
+
+/**
+ * @brief      A cell of the result read as an integer, checking that it was read.
+ */
+stock CellInt(row, const field[]) {
+    new
+        value
+    ;
+
+    Test_Check(MySQL_GetValueInt(row, field, value), __line);
+
+    return value;
+}
+
+/**
+ * @brief      A cell of the result read as a float, checking that it was read.
+ */
+stock Float:CellFloat(row, const field[]) {
+    new
+        Float:value
+    ;
+
+    Test_Check(MySQL_GetValueFloat(row, field, value), __line);
+
+    return value;
+}
+
+/**
+ * @brief      A value of a JSON cell read as an integer, checking that it was read.
+ */
+stock JSONInt(row, const field[], const key[]) {
+    new
+        value
+    ;
+
+    Test_Check(MySQL_GetJSONValueInt(row, field, key, value), __line);
+
+    return value;
+}
+
+/**
+ * @brief      A value of a JSON cell read as a float, checking that it was read.
+ */
+stock Float:JSONFloat(row, const field[], const key[]) {
+    new
+        Float:value
+    ;
+
+    Test_Check(MySQL_GetJSONValueFloat(row, field, key, value), __line);
+
+    return value;
+}
+
+/**
+ * @brief      A value of a JSON cell read as a bool, checking that it was read.
+ */
+stock bool:JSONBool(row, const field[], const key[]) {
+    new
+        bool:value
+    ;
+
+    Test_Check(MySQL_GetJSONValueBool(row, field, key, value), __line);
+
+    return value;
+}
