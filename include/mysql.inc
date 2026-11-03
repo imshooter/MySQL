@@ -53,28 +53,14 @@
 #define INVALID_STATEMENT_ID            (Statement:0)
 #define INVALID_BATCH_ID                (Batch:0)
 
-/**
- * Tags a value of a query takes: `Float`, `Query` for `%Q`, and the tags a script lists in
- * `CUSTOM_TAG_TYPES`, as open.mp does.
- */
 #define MYSQL_TAGS                      {Float, Query, CUSTOM_TAG_TYPES, _}
 
-/**
- * The Argon2id costs of `MySQL_HashArgon2`, the least OWASP recommends: 19 MiB, two passes, one lane.
- * A hash takes some tens of milliseconds with them on a desktop processor.
- */
 #define MYSQL_ARGON2_MEMORY             (19456)
 #define MYSQL_ARGON2_ITERATIONS         (2)
 #define MYSQL_ARGON2_PARALLELISM        (1)
 
-/**
- * The bcrypt cost of `MySQL_HashBcrypt`. Each step up doubles the time a hash takes.
- */
 #define MYSQL_BCRYPT_COST               (12)
 
-/**
- * Characters an array needs for a hash, the end included.
- */
 #define MYSQL_HASH_LENGTH               (128)
 
 enum MYSQL_JSON {
